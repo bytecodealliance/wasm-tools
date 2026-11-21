@@ -218,168 +218,169 @@
     },
     {
       "type": "module",
-      "line": 319,
+      "line": 320,
       "filename": "type-export-restrictions.32.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
+      "type": "assert_invalid",
       "line": 339,
       "filename": "type-export-restrictions.33.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "refers to resources not defined in the current component"
     },
     {
       "type": "module",
-      "line": 345,
+      "line": 348,
       "filename": "type-export-restrictions.34.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 350,
+      "line": 354,
       "filename": "type-export-restrictions.35.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module_definition",
-      "line": 354,
+      "type": "module",
+      "line": 359,
       "filename": "type-export-restrictions.36.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 362,
+      "type": "module_definition",
+      "line": 363,
       "filename": "type-export-restrictions.37.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 371,
+      "filename": "type-export-restrictions.38.wasm",
       "module_type": "binary",
       "text": "instance not valid to be used as export"
     },
     {
       "type": "module",
-      "line": 384,
-      "filename": "type-export-restrictions.38.wasm",
+      "line": 393,
+      "filename": "type-export-restrictions.39.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 391,
-      "filename": "type-export-restrictions.39.wasm",
+      "line": 400,
+      "filename": "type-export-restrictions.40.wasm",
       "module_type": "binary",
       "text": "instance not valid to be used as import"
     },
     {
       "type": "module_definition",
-      "line": 402,
+      "line": 411,
       "name": "C",
-      "filename": "type-export-restrictions.40.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 418,
       "filename": "type-export-restrictions.41.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 433,
-      "filename": "type-export-restrictions.42.wasm",
-      "module_type": "binary",
-      "text": "type not valid to be used as import"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 443,
-      "filename": "type-export-restrictions.43.wasm",
-      "module_type": "binary",
-      "text": "type not valid to be used as export"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 454,
-      "filename": "type-export-restrictions.44.wasm",
-      "module_type": "binary",
-      "text": "type not valid to be used as import"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 461,
-      "filename": "type-export-restrictions.45.wasm",
-      "module_type": "binary",
-      "text": "type not valid to be used as export"
-    },
-    {
       "type": "module",
-      "line": 468,
-      "filename": "type-export-restrictions.46.wasm",
+      "line": 427,
+      "filename": "type-export-restrictions.42.wasm",
       "module_type": "binary"
     },
     {
+      "type": "assert_invalid",
+      "line": 442,
+      "filename": "type-export-restrictions.43.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 452,
+      "filename": "type-export-restrictions.44.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 463,
+      "filename": "type-export-restrictions.45.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 470,
+      "filename": "type-export-restrictions.46.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
       "type": "module",
-      "line": 508,
+      "line": 477,
       "filename": "type-export-restrictions.47.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 513,
+      "line": 517,
       "filename": "type-export-restrictions.48.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 518,
+      "line": 522,
       "filename": "type-export-restrictions.49.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 524,
+      "line": 527,
       "filename": "type-export-restrictions.50.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
+      "type": "module",
       "line": 533,
       "filename": "type-export-restrictions.51.wasm",
-      "module_type": "binary",
-      "text": "type not valid to be used as export"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 542,
       "filename": "type-export-restrictions.52.wasm",
       "module_type": "binary",
-      "text": "type not valid to be used as import"
+      "text": "type not valid to be used as export"
     },
     {
       "type": "assert_invalid",
-      "line": 549,
+      "line": 551,
       "filename": "type-export-restrictions.53.wasm",
       "module_type": "binary",
       "text": "type not valid to be used as import"
     },
     {
       "type": "assert_invalid",
-      "line": 555,
+      "line": 558,
       "filename": "type-export-restrictions.54.wasm",
       "module_type": "binary",
       "text": "type not valid to be used as import"
     },
     {
-      "type": "module",
-      "line": 562,
+      "type": "assert_invalid",
+      "line": 564,
       "filename": "type-export-restrictions.55.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type not valid to be used as import"
     },
     {
       "type": "module",
-      "line": 566,
+      "line": 571,
       "filename": "type-export-restrictions.56.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 573,
+      "line": 575,
       "filename": "type-export-restrictions.57.wasm",
       "module_type": "binary"
     },
@@ -391,14 +392,20 @@
     },
     {
       "type": "module",
-      "line": 590,
+      "line": 591,
       "filename": "type-export-restrictions.59.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 601,
+      "type": "module",
+      "line": 599,
       "filename": "type-export-restrictions.60.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 610,
+      "filename": "type-export-restrictions.61.wasm",
       "module_type": "binary",
       "text": "type not valid to be used as export"
     }

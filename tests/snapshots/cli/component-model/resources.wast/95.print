@@ -1,6 +1,0 @@
-(component
-  (import "a" (type $T (;0;) (sub resource)))
-  (type (;1;) (borrow $T))
-  (type (;2;) (func (param "self" 1)))
-  (import "[method]a.b" (func (;0;) (type 2)))
-)
