@@ -3,19 +3,12 @@
     (instance
       (type (;0;)
         (instance
-          (type (;0;) (record (field "a" u32)))
-          (export (;1;) "t" (type (eq 0)))
+          (export (;0;) "t" (type (sub resource)))
         )
       )
-      (type (;1;)
-        (instance
-          (alias outer 1 0 (type (;0;)))
-          (export (;0;) "k" (instance (type 0)))
-        )
-      )
-      (export (;0;) "inner" (instance (type 1)))
-      (alias export 0 "k" (instance (;1;)))
-      (alias export 1 "t" (type (;2;)))
+      (export (;0;) "inner" (instance (type 0)))
+      (alias export 0 "t" (type (;1;)))
+      (type (;2;) (own 1))
       (type (;3;) (func (param "x" 2)))
       (export (;0;) "f" (func (type 3)))
     )

@@ -780,13 +780,13 @@
   (type $C (component
     (import "x" (type $x (sub resource)))
 
-    (type $y (component
+    (type $y (instance
       (alias outer $C $x (type $my-x))
-      (import "x" (type (eq $my-x)))
+      (export "x" (type (eq $my-x)))
     ))
 
-    (import "y" (component (type $y)))
-    (export "z" (component (type $y)))
+    (import "y" (instance (type $y)))
+    (export "z" (instance (type $y)))
   ))
 
   (type $t (resource (rep i32)))
@@ -794,11 +794,74 @@
   (alias outer $A $t (type $other-t))
 
   (type (instance (export "t" (type (eq $t)))))
-  (type (component (export "t" (type (eq $t)))))
-  (type (component (import "t" (type (eq $t)))))
 )
 
-;; aliasing beyond components, however, is not ok
+;; aliasing outer resources into component types, however, is not ok since no
+;; component definition could ever satisfy such a type (see
+;; WebAssembly/component-model#771)
+(assert_invalid
+  (component $A
+    (type $C (component
+      (import "x" (type $x (sub resource)))
+      (type $y (component
+        (alias outer $C $x (type $my-x))
+        (import "x" (type (eq $my-x)))
+      ))
+    ))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (type (component (export "t" (type (eq $t)))))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (type (component (import "t" (type (eq $t)))))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component
+    (import "t" (type $t (sub resource)))
+    (type (component (export "t" (type (eq $t)))))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (type $l (list (own $t)))
+    (type (component (export "f" (func (param "x" $l)))))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (type (instance
+      (type (component (export "t" (type (eq $t)))))
+    ))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (type (component
+      (type (instance (export "t" (type (eq $t)))))
+    ))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component $Outer
+    (import "r" (type $r (sub resource)))
+    (import "c" (component $c
+      (alias outer $Outer $r (type $x))
+      (export "x" (type (eq $x)))
+    ))
+  )
+  "refers to resources not defined in the current component")
+
+;; aliasing beyond components, is also not ok
 (assert_invalid
   (component $A
     (type $t (resource (rep i32)))
@@ -1193,108 +1256,6 @@
   (core func (canon resource.rep $r))
   (canon resource.rep $r (core func))
 )
-
-;; Nested component subtyping where the expected component type has been
-;; remapped by a resource substitution.
-;; valid
-(component $Outer
-  (import "r" (type $R (sub resource)))
-  (import "actual" (component $actual
-    (alias outer $Outer $R (type $R2))
-    (import "r" (type $rr (eq $R2)))
-    (type $o (own $rr))
-    (import "t" (type $t (eq $o)))
-    (export "f" (func (param "x" $t)))
-  ))
-  (component $X
-    (import "r" (type $r (sub resource)))
-    (import "c" (component
-      (alias outer $X $r (type $r2))
-      (import "r" (type $rr (eq $r2)))
-      (type $o (own $rr))
-      (import "t" (type $t (eq $o)))
-      (export "f" (func (param "x" $t)))
-    ))
-  )
-  (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
-)
-
-;; invalid: `actual` uses a different resource
-(assert_invalid
-  (component $Outer
-    (import "r" (type $R (sub resource)))
-    (import "r2" (type $Other (sub resource)))
-    (import "actual" (component $actual
-      (alias outer $Outer $Other (type $R2))
-      (import "r" (type $rr (eq $R2)))
-      (type $o (own $rr))
-      (import "t" (type $t (eq $o)))
-      (export "f" (func (param "x" $t)))
-    ))
-    (component $X
-      (import "r" (type $r (sub resource)))
-      (import "c" (component
-        (alias outer $X $r (type $r2))
-        (import "r" (type $rr (eq $r2)))
-        (type $o (own $rr))
-        (import "t" (type $t (eq $o)))
-        (export "f" (func (param "x" $t)))
-      ))
-    )
-    (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
-  )
-  "type mismatch")
-
-;; invalid: `actual`'s export doesn't use the imported type
-(assert_invalid
-  (component $Outer
-    (import "r" (type $R (sub resource)))
-    (import "actual" (component $actual
-      (alias outer $Outer $R (type $R2))
-      (import "r" (type $rr (eq $R2)))
-      (type $o (own $rr))
-      (import "t" (type $t (eq $o)))
-      (export "f" (func (param "x" u32)))
-    ))
-    (component $X
-      (import "r" (type $r (sub resource)))
-      (import "c" (component
-        (alias outer $X $r (type $r2))
-        (import "r" (type $rr (eq $r2)))
-        (type $o (own $rr))
-        (import "t" (type $t (eq $o)))
-        (export "f" (func (param "x" $t)))
-      ))
-    )
-    (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
-  )
-  "type mismatch")
-
-;; invalid: `actual` exports a borrow where an own is expected
-(assert_invalid
-  (component $Outer
-    (import "r" (type $R (sub resource)))
-    (import "actual" (component $actual
-      (alias outer $Outer $R (type $R2))
-      (import "r" (type $rr (eq $R2)))
-      (type $o (own $rr))
-      (import "t" (type $t (eq $o)))
-      (type $b (borrow $rr))
-      (export "f" (func (param "x" $b)))
-    ))
-    (component $X
-      (import "r" (type $r (sub resource)))
-      (import "c" (component
-        (alias outer $X $r (type $r2))
-        (import "r" (type $rr (eq $r2)))
-        (type $o (own $rr))
-        (import "t" (type $t (eq $o)))
-        (export "f" (func (param "x" $t)))
-      ))
-    )
-    (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
-  )
-  "type mismatch")
 
 ;; Errors in nested component and module subtyping, where the expected type
 ;; has been remapped by a resource substitution, are reported as errors.

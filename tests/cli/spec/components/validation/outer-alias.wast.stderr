@@ -1,0 +1,10 @@
+error: 1 test failures in tests/component-model/test/validation/outer-alias.wast:
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/outer-alias.wast:106:2
+
+Caused by:
+    0: failed testing wasm binary produced by `wast`
+    1: wasm isn't valid
+    2: cannot alias outer type which transitively refers to resources not defined in the current component (at offset 0x14)
