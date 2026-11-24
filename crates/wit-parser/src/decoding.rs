@@ -59,7 +59,7 @@ impl ComponentInfo {
             let chunk = cur.parse(&buffer, eof)?;
             let (payload, consumed) = match chunk {
                 Chunk::NeedMoreData(hint) => {
-                    assert!(!eof); // otherwise an error would be returned
+                    ensure!(!eof, "unexpected end of input"); // otherwise an error would be returned
 
                     // Read up to the hint into our buffer, which grows with
                     // what is read: the hint comes from the input, so it may
@@ -89,9 +89,10 @@ impl ComponentInfo {
                         let import = import?;
                         let ty = validator
                             .types(0)
-                            .unwrap()
-                            .component_item_for_import(import.name.name)
-                            .unwrap();
+                            .and_then(|t| t.component_item_for_import(import.name.name))
+                            .with_context(|| {
+                                format!("no type for import `{}`", import.name.name)
+                            })?;
                         externs.push((import.name.name.to_string(), Extern::Import(ty.clone())));
                     }
                 }
@@ -100,9 +101,10 @@ impl ComponentInfo {
                         let export = export?;
                         let ty = validator
                             .types(0)
-                            .unwrap()
-                            .component_item_for_export(export.name.name)
-                            .unwrap();
+                            .and_then(|t| t.component_item_for_export(export.name.name))
+                            .with_context(|| {
+                                format!("no type for export `{}`", export.name.name)
+                            })?;
                         externs.push((export.name.name.to_string(), Extern::Export(ty.clone())));
                     }
                 }
@@ -134,7 +136,7 @@ impl ComponentInfo {
         }
 
         Ok(Self {
-            types: types.unwrap(),
+            types: types.context("component has no end")?,
             externs,
             package_metadata: _package_metadata,
         })
@@ -182,12 +184,12 @@ impl ComponentInfo {
         for (name, item) in self.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
-                _ => unreachable!(),
+                _ => bail!("WIT package import `{name}` is not supported"),
             };
             if pkg.is_some() {
                 bail!("more than one top-level exported component type found");
             }
-            let name = crate::parse_component_name(name).unwrap();
+            let name = crate::parse_component_name(name)?;
             pkg = Some(
                 decoder
                     .decode_v1_package(&name, export)
@@ -215,17 +217,17 @@ impl ComponentInfo {
             worlds: &mut worlds,
         };
 
-        for (_, item) in self.externs.iter() {
+        for (name, item) in self.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
-                _ => unreachable!(),
+                _ => bail!("WIT package import `{name}` is not supported"),
             };
             let component = match export.ty {
                 ComponentEntityType::Type {
                     created: ComponentAnyTypeId::Component(id),
                     ..
                 } => &self.types[id],
-                _ => unreachable!(),
+                _ => bail!("WIT package export `{name}` is not a component type"),
             };
 
             // The single export of this component will determine if it's a world or an interface:
@@ -237,7 +239,11 @@ impl ComponentInfo {
                 );
             }
 
-            let name = component.exports.keys().nth(0).unwrap();
+            let name = component
+                .exports
+                .keys()
+                .nth(0)
+                .context("expected an export")?;
 
             let item = &component.exports[name];
             let name = match item.ty {
@@ -290,7 +296,10 @@ impl ComponentInfo {
     }
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
-        assert!(self.is_wit_package().is_none());
+        ensure!(
+            self.is_wit_package().is_none(),
+            "expected a component, not a WIT package"
+        );
         let mut decoder = WitPackageDecoder::new(&self.types);
         // Note that this name is arbitrarily chosen. We may one day perhaps
         // want to encode this in the component binary format itself, but for
@@ -457,7 +466,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     if exports[0].ty.is_some() {
         bail!("expected an un-ascribed exported type");
     }
-    let types = types.as_ref().unwrap();
+    let types = types.as_ref().context("component has no end")?;
     let world = match types.as_ref().component_any_type_at(exports[0].index) {
         ComponentAnyTypeId::Component(c) => c,
         _ => bail!("expected an exported component type"),
@@ -473,7 +482,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
              no imports and one export"
         );
     }
-    let name = ty.exports.keys().nth(0).unwrap();
+    let name = ty.exports.keys().nth(0).context("expected an export")?;
     let name = decoder.decode_world(
         name,
         &ty.exports[0],
@@ -490,7 +499,11 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     })?;
     // The package decoded here should only have a single world so extract that
     // here to return.
-    let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
+    let world = *resolve.packages[pkg]
+        .worlds
+        .values()
+        .next()
+        .context("expected a world")?;
     Ok((resolve, world))
 }
 
@@ -538,7 +551,7 @@ impl WitPackageDecoder<'_> {
                 created: ComponentAnyTypeId::Component(id),
                 ..
             } => &self.types[id],
-            _ => unreachable!(),
+            _ => bail!("package `{name}` is not a component type"),
         };
 
         // Process all imports for this package first, where imports are
@@ -977,7 +990,7 @@ impl WitPackageDecoder<'_> {
         name_string: &str,
         item: &ComponentItem,
     ) -> Result<InterfaceId> {
-        let name = crate::parse_component_name(name_string).unwrap();
+        let name = crate::parse_component_name(name_string)?;
         let name = match name.kind() {
             ComponentNameKind::Interface(name) => name,
             _ => bail!("package name is not a valid id: {name_string}"),
@@ -1013,9 +1026,8 @@ impl WitPackageDecoder<'_> {
         self.iface_to_package_index.insert(
             interface,
             self.foreign_packages
-                .get_full(&package_name.to_string())
-                .unwrap()
-                .0,
+                .get_index_of(&package_name.to_string())
+                .context("foreign package not registered")?,
         );
         Ok(interface)
     }
@@ -1043,7 +1055,7 @@ impl WitPackageDecoder<'_> {
     ) -> Result<(WorldKey, InterfaceId)> {
         let ty = match item.ty {
             ComponentEntityType::Instance(i) => &self.types[i],
-            _ => unreachable!(),
+            _ => bail!("`{name}` is not an instance"),
         };
         // If this interface's name is already known then that means this is an
         // interface that's both imported and exported.  Use `register_import`
@@ -1077,7 +1089,7 @@ impl WitPackageDecoder<'_> {
                         .register_type_export(name.as_str(), item, owner)
                         .with_context(|| format!("failed to register type export '{name}'"))?;
                     let prev = interface.types.insert(name.to_string(), ty);
-                    assert!(prev.is_none());
+                    ensure!(prev.is_none(), "type `{name}` is defined twice");
                 }
 
                 ComponentEntityType::Func(_) => {
@@ -1085,7 +1097,7 @@ impl WitPackageDecoder<'_> {
                         .convert_function(name.as_str(), item, owner)
                         .with_context(|| format!("failed to convert function '{name}'"))?;
                     let prev = interface.functions.insert(name.to_string(), func);
-                    assert!(prev.is_none());
+                    ensure!(prev.is_none(), "function `{name}` is defined twice");
                 }
                 _ => bail!("instance type export `{name}` is not a type or function"),
             };
@@ -1104,7 +1116,7 @@ impl WitPackageDecoder<'_> {
                     );
                 }
                 let prev = self.named_interfaces.insert(name.to_string(), id);
-                assert!(prev.is_none());
+                ensure!(prev.is_none(), "interface `{name}` is defined twice");
                 WorldKey::Interface(id)
             }
 
@@ -1147,7 +1159,7 @@ impl WitPackageDecoder<'_> {
                 referenced,
                 created,
             } => (referenced, created),
-            _ => unreachable!(),
+            _ => bail!("`{name}` is not a type"),
         };
         let kind = match find_alias(&self.types, &self.type_map, referenced) {
             // If this `TypeId` points to a type which has
@@ -1209,7 +1221,7 @@ impl WitPackageDecoder<'_> {
                 .entry(owner)
                 .or_insert(HashMap::new())
                 .insert(name.to_string(), ty);
-            assert!(prev.is_none());
+            ensure!(prev.is_none(), "resource `{name}` is defined twice");
         }
 
         // A duplicate mapping here comes from a valid component that WIT cannot
@@ -1305,9 +1317,9 @@ impl WitPackageDecoder<'_> {
     ) -> Result<Function> {
         let ty = match item.ty {
             ComponentEntityType::Func(i) => &self.types[i],
-            _ => unreachable!(),
+            _ => bail!("`{name}` is not a function"),
         };
-        let name = crate::parse_component_name(name).unwrap();
+        let name = crate::parse_component_name(name)?;
         let params = ty
             .params
             .iter()
@@ -1464,7 +1476,7 @@ impl WitPackageDecoder<'_> {
             | TypeDefKind::Flags(_) => {
                 bail!("unexpected unnamed type of kind '{}'", kind.as_str());
             }
-            TypeDefKind::Unknown => unreachable!(),
+            TypeDefKind::Unknown => bail!("unexpected unknown type"),
         }
         let ty = self.resolve.types.alloc(TypeDef {
             name: None,
@@ -1476,7 +1488,7 @@ impl WitPackageDecoder<'_> {
             external_id: None,
         });
         let prev = self.type_map.insert(id.into(), ty);
-        assert!(prev.is_none());
+        ensure!(prev.is_none(), "anonymous type was already decoded");
         Ok(Type::Id(ty))
     }
 
@@ -1595,13 +1607,19 @@ impl WitPackageDecoder<'_> {
 
             ComponentDefinedType::Own(id) => {
                 let key: ComponentAnyTypeId = (*id).into();
-                let id = self.type_map[&key];
+                let id = *self
+                    .type_map
+                    .get(&key)
+                    .context("handle to an unknown resource")?;
                 Ok(TypeDefKind::Handle(Handle::Own(id)))
             }
 
             ComponentDefinedType::Borrow(id) => {
                 let key: ComponentAnyTypeId = (*id).into();
-                let id = self.type_map[&key];
+                let id = *self
+                    .type_map
+                    .get(&key)
+                    .context("handle to an unknown resource")?;
                 Ok(TypeDefKind::Handle(Handle::Borrow(id)))
             }
 
@@ -1677,12 +1695,16 @@ impl WitPackageDecoder<'_> {
         }
 
         let id = self.insert_package(package)?;
-        assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
-        assert!(
+        ensure!(
+            self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()),
+            "a world isn't in any package"
+        );
+        ensure!(
             self.resolve
                 .interfaces
                 .iter()
-                .all(|(_, i)| i.package.is_some())
+                .all(|(_, i)| i.package.is_some()),
+            "an interface isn't in any package"
         );
         Ok((self.resolve, id))
     }
@@ -1700,22 +1722,19 @@ impl WitPackageDecoder<'_> {
         // function this isn't the case. This shouldn't in general be a problem
         // so union-up the packages here while asserting that nothing gets
         // replaced by accident which would indicate a bug.
-        let pkg = self
-            .resolve
-            .package_names
-            .get(&name)
-            .copied()
-            .unwrap_or_else(|| {
+        let pkg = match self.resolve.package_names.get(&name) {
+            Some(id) => *id,
+            None => {
                 let id = self.resolve.packages.alloc(Package {
                     name: name.clone(),
                     interfaces: Default::default(),
                     worlds: Default::default(),
                     docs,
                 });
-                let prev = self.resolve.package_names.insert(name, id);
-                assert!(prev.is_none());
+                self.resolve.package_names.insert(name, id);
                 id
-            });
+            }
+        };
 
         for (name, id) in interfaces {
             let prev = self.resolve.packages[pkg]
@@ -1740,8 +1759,8 @@ impl WitPackageDecoder<'_> {
                     self.resolve.packages[pkg].name
                 );
             }
-            let prev = self.resolve.packages[pkg].worlds.insert(name, id);
-            assert!(prev.is_none());
+            let prev = self.resolve.packages[pkg].worlds.insert(name.clone(), id);
+            ensure!(prev.is_none(), "world `{name}` is defined twice");
             let world = &mut self.resolve.worlds[id];
             world.package = Some(pkg);
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
@@ -1769,7 +1788,10 @@ impl WitPackageDecoder<'_> {
             return Ok(());
         }
 
-        let (name, pkg) = self.foreign_packages.get_index(idx).unwrap();
+        let (name, pkg) = self
+            .foreign_packages
+            .get_index(idx)
+            .context("unknown foreign package")?;
         if !visiting.insert(idx) {
             bail!(
                 "cannot represent this component in WIT: package `{name}` creates a dependency cycle"
@@ -1802,7 +1824,7 @@ impl WitPackageDecoder<'_> {
         }
 
         visiting.remove(&idx);
-        assert!(order.insert(idx));
+        ensure!(order.insert(idx), "package `{name}` was visited twice");
         Ok(())
     }
 }
