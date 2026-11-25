@@ -1,0 +1,21 @@
+(module
+  (type $s (;0;) (struct (field $any (mut anyref)) (field $eq (mut eqref))))
+  (type (;1;) (func (param (ref $s) anyref eqref)))
+  (func (;0;) (type 1) (param $s (ref $s)) (param $x anyref) (param $y eqref)
+    local.get $s
+    struct.atomic.get seqcst $s $any
+    drop
+    local.get $s
+    local.get $x
+    struct.atomic.set seqcst $s $any
+    local.get $s
+    local.get $x
+    struct.atomic.rmw.xchg seqcst $s $any
+    drop
+    local.get $s
+    local.get $y
+    local.get $y
+    struct.atomic.rmw.cmpxchg seqcst $s $eq
+    drop
+  )
+)

@@ -70,7 +70,8 @@ impl<T: WasmModuleResources> ModuleArity for FuncValidator<T> {
     }
 
     fn tag_type_arity(&self, at: u32) -> Option<(u32, u32)> {
-        let ty = self.resources.tag_at(at)?;
+        let id = self.resources.tag_type_id_at(at)?;
+        let ty = self.resources.sub_type_at_id(id).unwrap_func();
         Some((
             u32::try_from(ty.params().len()).unwrap(),
             u32::try_from(ty.results().len()).unwrap(),
@@ -367,7 +368,7 @@ mod tests {
         fn memory_at(&self, _at: u32) -> Option<crate::MemoryType> {
             todo!()
         }
-        fn tag_at(&self, _at: u32) -> Option<&crate::FuncType> {
+        fn tag_type_id_at(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
         }
         fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {

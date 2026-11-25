@@ -894,3 +894,25 @@
     ))
   "invalid type: `array.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
 )
+
+;; Atomic accesses to unshared arrays with unshared reference elements.
+(module
+  (type $any (array (mut anyref)))
+  (type $eq (array (mut eqref)))
+  (func (param $a (ref $any)) (param $b (ref $eq)) (param $x anyref) (param $y eqref)
+    (drop (array.atomic.get seqcst $any (local.get $a) (i32.const 0)))
+    (array.atomic.set seqcst $any (local.get $a) (i32.const 0) (local.get $x))
+    (drop (array.atomic.rmw.xchg seqcst $any (local.get $a) (i32.const 0) (local.get $x)))
+    (drop (array.atomic.rmw.cmpxchg seqcst $eq (local.get $b) (i32.const 0) (local.get $y) (local.get $y)))
+  )
+)
+
+;; The expected operand of `array.atomic.rmw.cmpxchg` is typed `eqref` (or its
+;; shared form), not the element type.
+(module
+  (type $e (shared (struct)))
+  (type $a (shared (array (mut (ref null $e)))))
+  (func (param $a (ref $a)) (param $expected (ref null (shared eq))) (param $replacement (ref null $e)) (result (ref null $e))
+    (array.atomic.rmw.cmpxchg seqcst $a (local.get $a) (i32.const 0) (local.get $expected) (local.get $replacement))
+  )
+)

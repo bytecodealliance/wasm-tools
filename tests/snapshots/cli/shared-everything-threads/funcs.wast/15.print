@@ -1,0 +1,10 @@
+(module
+  (type $shared_func (;0;) (shared (func)))
+  (table $t (;0;) shared 1 (ref null (shared func)))
+  (func (;0;) (type $shared_func)
+    i32.const 0
+    call_indirect (type $shared_func)
+    i32.const 0
+    return_call_indirect (type $shared_func)
+  )
+)

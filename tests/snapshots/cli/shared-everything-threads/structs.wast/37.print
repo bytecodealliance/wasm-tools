@@ -1,0 +1,11 @@
+(module
+  (type $e (;0;) (shared (struct)))
+  (type $s (;1;) (shared (struct (field (mut (ref null $e))))))
+  (type (;2;) (func (param (ref $s) (ref null (shared eq)) (ref null $e)) (result (ref null $e))))
+  (func (;0;) (type 2) (param $s (ref $s)) (param $expected (ref null (shared eq))) (param $replacement (ref null $e)) (result (ref null $e))
+    local.get $s
+    local.get $expected
+    local.get $replacement
+    struct.atomic.rmw.cmpxchg seqcst $s 0
+  )
+)

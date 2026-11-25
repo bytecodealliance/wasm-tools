@@ -572,3 +572,24 @@
     ))
   "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
 )
+
+;; Atomic accesses to unshared structs with unshared reference fields.
+(module
+  (type $s (struct (field $any (mut anyref)) (field $eq (mut eqref))))
+  (func (param $s (ref $s)) (param $x anyref) (param $y eqref)
+    (drop (struct.atomic.get seqcst $s $any (local.get $s)))
+    (struct.atomic.set seqcst $s $any (local.get $s) (local.get $x))
+    (drop (struct.atomic.rmw.xchg seqcst $s $any (local.get $s) (local.get $x)))
+    (drop (struct.atomic.rmw.cmpxchg seqcst $s $eq (local.get $s) (local.get $y) (local.get $y)))
+  )
+)
+
+;; The expected operand of `struct.atomic.rmw.cmpxchg` is typed `eqref` (or its
+;; shared form), not the field's type.
+(module
+  (type $e (shared (struct)))
+  (type $s (shared (struct (field (mut (ref null $e))))))
+  (func (param $s (ref $s)) (param $expected (ref null (shared eq))) (param $replacement (ref null $e)) (result (ref null $e))
+    (struct.atomic.rmw.cmpxchg seqcst $s 0 (local.get $s) (local.get $expected) (local.get $replacement))
+  )
+)

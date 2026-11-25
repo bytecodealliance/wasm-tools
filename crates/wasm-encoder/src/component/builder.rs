@@ -514,14 +514,15 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `thread.spawn_ref` intrinsic.
-    pub fn thread_spawn_ref(&mut self, ty: u32) -> u32 {
-        self.canonical_functions().thread_spawn_ref(ty);
+    pub fn thread_spawn_ref(&mut self, shared: bool, ty: u32) -> u32 {
+        self.canonical_functions().thread_spawn_ref(shared, ty);
         self.core_funcs.add(Some("thread.spawn-ref"))
     }
 
     /// Declares a new `thread.available_parallelism` intrinsic.
-    pub fn thread_available_parallelism(&mut self) -> u32 {
-        self.canonical_functions().thread_available_parallelism();
+    pub fn thread_available_parallelism(&mut self, shared: bool) -> u32 {
+        self.canonical_functions()
+            .thread_available_parallelism(shared);
         self.core_funcs.add(Some("thread.available-parallelism"))
     }
 

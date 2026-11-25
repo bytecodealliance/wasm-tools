@@ -468,7 +468,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ResourceRep { .. }
                             | CanonicalFunction::ThreadSpawnRef { .. }
                             | CanonicalFunction::ThreadSpawnIndirect { .. }
-                            | CanonicalFunction::ThreadAvailableParallelism
+                            | CanonicalFunction::ThreadAvailableParallelism { .. }
                             | CanonicalFunction::BackpressureInc
                             | CanonicalFunction::BackpressureDec
                             | CanonicalFunction::TaskReturn { .. }

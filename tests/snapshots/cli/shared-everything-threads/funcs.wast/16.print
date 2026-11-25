@@ -1,0 +1,10 @@
+(module
+  (type $shared_func (;0;) (shared (func)))
+  (func (;0;) (type $shared_func)
+    block (result (ref null (shared any))) ;; label = @1
+      unreachable
+      any.convert_extern
+    end
+    drop
+  )
+)

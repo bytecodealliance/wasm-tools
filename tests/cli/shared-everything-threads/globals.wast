@@ -501,3 +501,32 @@
     drop
   )
 )
+
+;; Atomic accesses to shared globals of shared reference types.
+(module
+  (global $any (shared mut (ref null (shared any))) (ref.null (shared any)))
+  (global $eq (shared mut (ref null (shared eq))) (ref.null (shared eq)))
+  (func (param $x (ref null (shared any))) (param $y (ref null (shared eq)))
+    (drop (global.atomic.get seqcst $any))
+    (global.atomic.set seqcst $any (local.get $x))
+    (drop (global.atomic.rmw.xchg seqcst $any (local.get $x)))
+    (drop (global.atomic.rmw.cmpxchg seqcst $eq (local.get $y) (local.get $y)))
+  )
+)
+
+;; The expected operand of `global.atomic.rmw.cmpxchg` is typed `eqref` (or its
+;; shared form), not the global's type.
+(module
+  (type $s (struct))
+  (global $g (mut (ref null $s)) (ref.null $s))
+  (func (param $expected eqref) (param $replacement (ref null $s)) (result (ref null $s))
+    (global.atomic.rmw.cmpxchg seqcst $g (local.get $expected) (local.get $replacement))
+  )
+)
+(module
+  (type $s (shared (struct)))
+  (global $g (shared mut (ref null $s)) (ref.null $s))
+  (func (param $expected (ref null (shared eq))) (param $replacement (ref null $s)) (result (ref null $s))
+    (global.atomic.rmw.cmpxchg seqcst $g (local.get $expected) (local.get $replacement))
+  )
+)

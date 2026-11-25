@@ -1,0 +1,10 @@
+(module
+  (type $unshared_block (;0;) (func (param i32) (result i32)))
+  (type $shared_func (;1;) (shared (func)))
+  (func (;0;) (type $shared_func)
+    i32.const 0
+    block (type $unshared_block) (param i32) (result i32) ;; label = @1
+    end
+    drop
+  )
+)

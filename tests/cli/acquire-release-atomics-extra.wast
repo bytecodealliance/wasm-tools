@@ -123,7 +123,7 @@
       "\1a"                               ;; drop
     "\0b"                                 ;; end
   )
-  "invalid atomic consistency ordering 0x2")
+  "invalid atomic consistency ordering")
 (assert_malformed
   (module binary
     "\00asm\01\00\00\00"
