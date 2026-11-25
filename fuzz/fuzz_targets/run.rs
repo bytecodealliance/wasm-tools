@@ -91,4 +91,5 @@ run_fuzzers! {
     text_parser: string,
     reencode: unstructured,
     wit64: unstructured,
+    well_formed_component: unstructured,
 }
