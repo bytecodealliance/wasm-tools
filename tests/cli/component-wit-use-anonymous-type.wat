@@ -1,4 +1,6 @@
-;; FAIL: component wit %
+;; RUN: component wit %
+;;
+;; A type reusing a list that has no named types in it is just that list.
 
 (component
   (type $pkg (component

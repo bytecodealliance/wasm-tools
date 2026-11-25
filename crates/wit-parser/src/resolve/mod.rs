@@ -2225,6 +2225,33 @@ impl Resolve {
         Ok(())
     }
 
+    /// Checks `world`'s exports the way `elaborate_world` does, without
+    /// changing the world.
+    ///
+    /// A world decoded from a component is already elaborated, but nothing
+    /// else has checked that its exports depend on interfaces it either only
+    /// imports or only exports, which WIT requires.
+    #[cfg(feature = "decoding")]
+    pub(crate) fn check_world_exports(&self, world: WorldId) -> ResolveResult<()> {
+        let world = &self.worlds[world];
+        let mut imports = world.imports.clone();
+        let mut exports = IndexMap::default();
+        let mut export_interfaces = IndexMap::default();
+        for (name, item) in world.exports.iter() {
+            let map = match item {
+                WorldItem::Interface { .. } => &mut export_interfaces,
+                _ => &mut exports,
+            };
+            map.insert(name.clone(), item.clone());
+        }
+        self.elaborate_world_exports(
+            &export_interfaces,
+            &mut imports,
+            &mut exports,
+            Default::default(),
+        )
+    }
+
     fn elaborate_world_import(
         &self,
         imports: &mut IndexMap<WorldKey, WorldItem>,

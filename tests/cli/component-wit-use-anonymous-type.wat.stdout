@@ -1,0 +1,11 @@
+package root:component;
+
+world root {
+  import a:x/k;
+  import f: func(x: list<u32>);
+}
+package a:x {
+  interface k {
+    type x = list<u32>;
+  }
+}
