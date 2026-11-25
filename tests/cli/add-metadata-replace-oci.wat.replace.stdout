@@ -1,0 +1,9 @@
+(module
+  (@custom "authors" (before first) "new-authors")
+  (@custom "description" (before first) "new-description")
+  (@custom "licenses" (before first) "Apache-2.0")
+  (@custom "source" (before first) "https://example.com/new-source")
+  (@custom "homepage" (before first) "https://example.com/new-homepage")
+  (@custom "revision" (before first) "new-revision")
+  (@custom "version" (before first) "2.0")
+)

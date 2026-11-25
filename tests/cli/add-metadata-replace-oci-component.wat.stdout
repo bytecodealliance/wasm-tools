@@ -1,0 +1,7 @@
+(component
+  (core module (;0;)
+    (@custom "description" (before first) "nested")
+  )
+  (@custom "version" "1.0")
+  (@custom "description" "updated")
+)
