@@ -1,0 +1,29 @@
+(component
+  (core module $main (;0;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (export "add" (func 0))
+    (func (;0;) (type 0) (param $a i32) (param $b i32) (result i32)
+      local.get $a
+      local.get $b
+      i32.add
+    )
+  )
+  (core module $out.1.wasm (;1;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (import "env" "add" (func $add (;0;) (type 0) (param i32 i32) (result i32)))
+    (export "sum" (func 1))
+    (func (;1;) (type 0) (param i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      call $add
+    )
+  )
+  (core instance $main (;0;) (instantiate $main))
+  (core instance $out.1.wasm (;1;) (instantiate $out.1.wasm
+      (with "env" (instance $main))
+    )
+  )
+  (@producers
+    (processed-by "wit-component" "%version")
+  )
+)
