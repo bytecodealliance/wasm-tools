@@ -2231,6 +2231,7 @@ impl Resolve {
     /// A world decoded from a component is already elaborated, but nothing
     /// else has checked that its exports depend on interfaces it either only
     /// imports or only exports, which WIT requires.
+    #[cfg(feature = "decoding")]
     pub(crate) fn check_world_exports(&self, world: WorldId) -> ResolveResult<()> {
         let world = &self.worlds[world];
         let mut imports = world.imports.clone();
