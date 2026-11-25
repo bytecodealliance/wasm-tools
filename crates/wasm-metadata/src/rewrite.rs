@@ -96,70 +96,56 @@ pub(crate) fn rewrite_wasm(
                         if metadata.authors.is_keep() {
                             let authors = crate::Authors::parse_custom_section(c)?;
                             authors.append_to(&mut output);
-                            continue;
-                        } else if metadata.authors.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "description" => {
                         if metadata.description.is_keep() {
                             let description = crate::Description::parse_custom_section(c)?;
                             description.append_to(&mut output);
-                            continue;
-                        } else if metadata.description.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "licenses" => {
                         if metadata.licenses.is_keep() {
                             let licenses = crate::Licenses::parse_custom_section(c)?;
                             licenses.append_to(&mut output);
-                            continue;
-                        } else if metadata.licenses.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "source" => {
                         if metadata.source.is_keep() {
                             let source = crate::Source::parse_custom_section(c)?;
                             source.append_to(&mut output);
-                            continue;
-                        } else if metadata.source.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "homepage" => {
                         if metadata.homepage.is_keep() {
                             let homepage = crate::Homepage::parse_custom_section(c)?;
                             homepage.append_to(&mut output);
-                            continue;
-                        } else if metadata.homepage.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "revision" => {
                         if metadata.revision.is_keep() {
                             let revision = crate::Revision::parse_custom_section(c)?;
                             revision.append_to(&mut output);
-                            continue;
-                        } else if metadata.revision.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "version" => {
                         if metadata.version.is_keep() {
                             let version = crate::Version::parse_custom_section(c)?;
                             version.append_to(&mut output);
-                            continue;
-                        } else if metadata.version.is_clear() {
-                            continue;
                         }
+                        continue;
                     }
                     _ => {}
                 }
